@@ -1,0 +1,341 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Kinder-Quiz (10–13) — 2 Spieler</title>
+<style>
+  :root{
+    --bg:#0f1724; --card:#111827; --accent:#06b6d4; --neon:#34d399;
+    --text:#e6eef6; --muted:#9aa6b2;
+  }
+  html,body{height:100%;margin:0;font-family:Inter,Segoe UI,system-ui,Arial,sans-serif;background:linear-gradient(180deg,#071028 0%, #082034 100%);color:var(--text);}
+  .wrap{max-width:920px;margin:28px auto;padding:18px;border-radius:12px;background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));box-shadow:0 6px 30px rgba(3,7,18,0.6);}
+  header{display:flex;gap:16px;align-items:center;justify-content:space-between}
+  h1{margin:0;font-size:20px}
+  .meta{color:var(--muted);font-size:13px}
+  .controls{display:flex;gap:8px;align-items:center}
+  select, button{padding:8px 10px;border-radius:8px;border:1px solid rgba(255,255,255,0.06);background:transparent;color:var(--text);cursor:pointer}
+  .grid{display:grid;grid-template-columns:1fr 320px;gap:18px;margin-top:16px}
+  .card{background:var(--card);padding:14px;border-radius:10px;box-shadow:0 4px 18px rgba(2,6,23,0.6)}
+  .question{font-size:18px;margin-bottom:12px}
+  .answers{display:grid;gap:8px}
+  .ans-btn{padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:var(--text);text-align:left;font-size:15px}
+  .ans-btn:hover{transform:translateY(-2px)}
+  .correct{background:linear-gradient(90deg,rgba(52,211,153,0.12),rgba(52,211,153,0.06));border-color:rgba(34,197,94,0.6);color:var(--neon);font-weight:700}
+  .wrong{background:linear-gradient(90deg,rgba(239,68,68,0.06),rgba(239,68,68,0.03));border-color:rgba(239,68,68,0.5);color:#ffb4b4}
+  .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .players{display:flex;flex-direction:column;gap:10px}
+  .player{display:flex;justify-content:space-between;align-items:center;padding:8px;border-radius:8px;background:linear-gradient(180deg,rgba(255,255,255,0.01),transparent)}
+  .active{outline:2px solid rgba(6,182,212,0.18);box-shadow:0 6px 14px rgba(6,182,212,0.06)}
+  .big{font-size:20px;font-weight:700}
+  footer{margin-top:14px;display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap}
+  .muted{color:var(--muted);font-size:13px}
+  .small{font-size:13px}
+  .btn-ghost{background:transparent;border:1px dashed rgba(255,255,255,0.04)}
+  code{background:rgba(255,255,255,0.02);padding:4px;border-radius:6px;color:var(--muted)}
+  @media (max-width:900px){.grid{grid-template-columns:1fr;}.wrap{margin:12px}}
+</style>
+</head>
+<body>
+<div class="wrap" role="application" aria-label="Kinder-Quiz">
+  <header>
+    <div>
+      <h1>Kinder-Quiz (10–13) — 2 Spieler</h1>
+      <div class="meta">5 Kategorien × 9 Fragen — Multiple Choice (A–D). Punkt pro richtiger Antwort.</div>
+    </div>
+    <div class="controls">
+      <label class="small muted">Runde</label>
+      <select id="roundSelect"></select>
+      <button id="startBtn">Start</button>
+      <button id="exportTxt" title="Export als TXT-Script">Export TXT</button>
+    </div>
+  </header>
+
+  <div class="grid" role="main">
+    <div class="card" aria-live="polite">
+      <div id="questionArea">
+        <div class="question" id="questionText">Wähle eine Runde und klicke auf Start.</div>
+        <div class="answers" id="answers"></div>
+      </div>
+
+      <footer>
+        <div class="row small muted" id="progress">Frage 0 / 0</div>
+        <div class="row">
+          <button id="nextBtn" class="btn-ghost">Nächste Frage</button>
+          <button id="revealBtn" class="btn-ghost">Antwort zeigen</button>
+          <button id="resetBtn" class="btn-ghost">Neu starten</button>
+        </div>
+      </footer>
+    </div>
+
+    <aside class="card">
+      <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:8px">
+        <div><strong>Spieler</strong></div><div class="muted small">Aktiver Spieler hat blaues Feld</div>
+      </div>
+      <div class="players" id="players">
+        <div id="p1" class="player active" tabindex="0" role="button" aria-pressed="true">
+          <div><div class="muted">Spieler 1</div><div class="big" id="score1">0</div></div>
+          <div><button id="p1Btn">P1 aktiv</button></div>
+        </div>
+        <div id="p2" class="player" tabindex="0" role="button" aria-pressed="false">
+          <div><div class="muted">Spieler 2</div><div class="big" id="score2">0</div></div>
+          <div><button id="p2Btn">P2 aktiv</button></div>
+        </div>
+      </div>
+
+      <hr style="border:none;height:1px;background:rgba(255,255,255,0.03);margin:12px 0">
+
+      <div class="small muted">Spielregeln:</div>
+      <ul class="muted small">
+        <li>Wähle eine Antwort — dann kann die richtige Antwort angezeigt werden.</li>
+        <li>Der aktive Spieler erhält 1 Punkt bei richtiger Antwort (anklicken → Punkt wird automatisch vergeben).</li>
+        <li>Wechsel den aktiven Spieler mit den Buttons im Spielerbereich.</li>
+        <li>Exportiere das TXT-Script (alle Fragen & Antworten) mit "Export TXT".</li>
+      </ul>
+    </aside>
+  </div>
+</div>
+
+<script>
+/* ---------- Fragen-Daten (5 Kategorien × 9 Fragen) ---------- */
+const rounds = [
+  {
+    title: "Kategorie 1 – Allgemeinwissen",
+    qs: [
+      {q: "Welcher Planet ist der größte in unserem Sonnensystem?", opts:["Mars","Erde","Jupiter","Venus"], a:2},
+      {q: "Wie viele Bundesländer hat Deutschland?", opts:["15","18","16","14"], a:2},
+      {q: "Wer malte die Mona Lisa?", opts:["Pablo Picasso","Leonardo da Vinci","Vincent van Gogh","Claude Monet"], a:1},
+      {q: "Wie nennt man ein fünfseitiges Polygon?", opts:["Quadrat","Hexagon","Pentagon","Trapez"], a:2},
+      {q: "Welches Tier kann am längsten ohne Wasser auskommen?", opts:["Elefant","Wüstenfuchs","Kamel","Giraffe"], a:2},
+      {q: "Wie viele Knochen hat der menschliche Körper als Erwachsener?", opts:["230","206","190","212"], a:1},
+      {q: "Welche Farbe hat das Blut eines Hummers?", opts:["Blau","Rot","Grün","Gelb"], a:0},
+      {q: "Welches ist das schnellste Landtier der Welt?", opts:["Gepard","Strauß","Leopard","Antilope"], a:0},
+      {q: "Wie viele Kontinente gibt es auf der Erde?", opts:["5","7","6","8"], a:1}
+    ]
+  },
+
+  {
+    title: "Kategorie 2 – Natur & Wissenschaft",
+    qs: [
+      {q:"Wie nennt man den Prozess, bei dem Pflanzen aus Sonnenlicht Energie gewinnen?", opts:["Fermentation","Photosynthese","Verdunstung","Osmose"], a:1},
+      {q:"Welches Gas atmen Menschen hauptsächlich aus?", opts:["Sauerstoff","Kohlendioxid","Stickstoff","Helium"], a:1}, // NOTE: user earlier had reversed; keep as displayed (intended Q: exhale CO2)
+      {q:"Wie viele Zähne hat ein erwachsener Mensch normalerweise?", opts:["30","32","28","34"], a:1},
+      {q:"Was ist der härteste natürliche Stoff auf der Erde?", opts:["Stahl","Diamant","Quarz","Titan"], a:1},
+      {q:"Wie heißt das größte Organ des menschlichen Körpers?", opts:["Leber","Herz","Haut","Gehirn"], a:2},
+      {q:"Welche Blutgruppe ist am seltensten?", opts:["0+","A+","B-","AB-"], a:3},
+      {q:"Wie nennt man das Studium von Fossilien?", opts:["Astronomie","Paläontologie","Geologie","Archäologie"], a:1},
+      {q:"Wie viele Planeten hat unser Sonnensystem?", opts:["7","8","9","10"], a:1},
+      {q:"Welches Tier legt die größten Eier?", opts:["Walhai","Strauß","Krokodil","Schildkröte"], a:1}
+    ]
+  },
+
+  {
+    title: "Kategorie 3 – Geschichte",
+    qs: [
+      {q:"In welchem Jahr fiel die Berliner Mauer?", opts:["1987","1989","1991","1993"], a:1},
+      {q:"Wer war der erste Präsident der USA?", opts:["Abraham Lincoln","George Washington","Thomas Jefferson","John Adams"], a:1},
+      {q:"Welches Land baute als erstes eine öffentliche Eisenbahnstrecke?", opts:["Deutschland","England","USA","Frankreich"], a:1},
+      {q:"Wer war Kleopatra?", opts:["Eine römische Kaiserin","Eine ägyptische Königin","Eine griechische Philosophin","Eine chinesische Herrscherin"], a:1},
+      {q:"Wie hieß das Schiff, mit dem Christoph Kolumbus 1492 segelte?", opts:["Mayflower","Victoria","Santa Maria","Endurance"], a:2},
+      {q:"In welchem Jahr begann der Erste Weltkrieg?", opts:["1912","1914","1916","1918"], a:1},
+      {q:"Wer erfand den Buchdruck in Europa?", opts:["Johannes Gutenberg","Leonardo da Vinci","Galileo Galilei","Isaac Newton"], a:0},
+      {q:"Welches Land wurde früher 'Persien' genannt?", opts:["Irak","Iran","Syrien","Türkei"], a:1},
+      {q:"Wer war der erste Mensch im Weltall?", opts:["Juri Gagarin","Neil Armstrong","Buzz Aldrin","Alan Shepard"], a:0}
+    ]
+  },
+
+  {
+    title: "Kategorie 4 – Technik & Erfindungen",
+    qs: [
+      {q:"Wer erfand das Telefon?", opts:["Nikola Tesla","Alexander Graham Bell","Thomas Edison","James Watt"], a:1},
+      {q:"Welche Programmiersprache wird oft für Webseiten verwendet?", opts:["Python","JavaScript","C++","Swift"], a:1},
+      {q:"Womit misst man elektrische Spannung?", opts:["Thermometer","Voltmeter","Amperemeter","Barometer"], a:1},
+      {q:"In welchem Jahr wurde das erste iPhone vorgestellt?", opts:["2005","2007","2009","2011"], a:1},
+      {q:"Was ist die Hauptfunktion eines Routers?", opts:["Daten speichern","Geräte mit dem Internet verbinden","Bilder bearbeiten","Musik abspielen"], a:1},
+      {q:"Wie nennt man die kleinste Speichereinheit eines Computers?", opts:["Megabyte","Kilobyte","Bit","Byte"], a:2},
+      {q:"Welches Unternehmen entwickelte Windows?", opts:["Apple","IBM","Microsoft","Intel"], a:2},
+      {q:"Welche Energiequelle nutzt ein Solarpanel?", opts:["Wind","Sonnenlicht","Wasser","Erdöl"], a:1},
+      {q:"Was bedeutet 'www' in einer Internetadresse?", opts:["World Wide Webbing","World Wide Web","Wireless Web World","Wide World Web"], a:1}
+    ]
+  },
+
+  {
+    title: "Kategorie 5 – Sport & Freizeit",
+    qs: [
+      {q:"Welches Land gewann die Fußball-WM 2014?", opts:["Brasilien","Deutschland","Spanien","Frankreich"], a:1},
+      {q:"Wie viele Spieler hat eine Basketballmannschaft auf dem Feld?", opts:["4","5","6","7"], a:1},
+      {q:"In welcher Sportart gibt es einen 'Knockout'?", opts:["Fußball","Tennis","Boxen","Golf"], a:2},
+      {q:"Wie lang ist ein Marathon?", opts:["20 km","42,195 km","50 km","30 km"], a:1},
+      {q:"Welche Farbe hat das Trikot des Tour-de-France-Führenden?", opts:["Rot","Gelb","Grün","Blau"], a:1},
+      {q:"In welcher Sportart wird ein 'Shuttlecock' verwendet?", opts:["Tennis","Badminton","Baseball","Hockey"], a:1},
+      {q:"Welcher Sport wird oft als 'Königssport' bezeichnet?", opts:["Tennis","Fußball","Basketball","Schwimmen"], a:1},
+      {q:"In welchem Land wurden die Olympischen Spiele 2020 (verschoben auf 2021) ausgetragen?", opts:["China","Japan","Frankreich","Australien"], a:1},
+      {q:"Welche Figur ist kein Schachstein?", opts:["Turm","Springer","Drache","Dame"], a:2}
+    ]
+  }
+];
+
+/* ---------- Spiel-Logik ---------- */
+let currentRoundIndex = 0;
+let currentQuestionIndex = 0;
+let scores = [0,0];
+let activePlayer = 0; // 0 = P1, 1 = P2
+let answered = false;
+
+const roundSelect = document.getElementById('roundSelect');
+const startBtn = document.getElementById('startBtn');
+const questionText = document.getElementById('questionText');
+const answersDiv = document.getElementById('answers');
+const progress = document.getElementById('progress');
+const score1 = document.getElementById('score1');
+const score2 = document.getElementById('score2');
+const p1 = document.getElementById('p1');
+const p2 = document.getElementById('p2');
+const p1Btn = document.getElementById('p1Btn');
+const p2Btn = document.getElementById('p2Btn');
+const nextBtn = document.getElementById('nextBtn');
+const revealBtn = document.getElementById('revealBtn');
+const resetBtn = document.getElementById('resetBtn');
+const exportTxt = document.getElementById('exportTxt');
+
+function populateRounds(){
+  rounds.forEach((r,i)=>{
+    const opt = document.createElement('option');
+    opt.value = i;
+    opt.textContent = r.title;
+    roundSelect.appendChild(opt);
+  });
+}
+populateRounds();
+
+function startRound(){
+  currentRoundIndex = parseInt(roundSelect.value || 0,10);
+  currentQuestionIndex = 0;
+  answered = false;
+  renderQuestion();
+}
+
+function renderQuestion(){
+  const round = rounds[currentRoundIndex];
+  const qObj = round.qs[currentQuestionIndex];
+  questionText.textContent = `${currentQuestionIndex+1}. ${qObj.q}`;
+  answersDiv.innerHTML = '';
+  progress.textContent = `Frage ${currentQuestionIndex+1} / ${round.qs.length} — ${round.title}`;
+  qObj.opts.forEach((opt, idx)=>{
+    const btn = document.createElement('button');
+    btn.className = 'ans-btn';
+    btn.innerHTML = `<strong>${String.fromCharCode(65+idx)})</strong> ${opt}`;
+    btn.onclick = ()=> selectAnswer(idx, btn);
+    btn.onkeydown = (e)=>{ if(e.key==='Enter') selectAnswer(idx,btn) };
+    answersDiv.appendChild(btn);
+  });
+  answered = false;
+}
+
+function selectAnswer(idx, btn){
+  if(answered) return;
+  answered = true;
+  const qObj = rounds[currentRoundIndex].qs[currentQuestionIndex];
+  const correct = qObj.a;
+  // mark buttons
+  [...answersDiv.children].forEach((b,i)=>{
+    if(i === correct){
+      b.classList.add('correct');
+      b.innerHTML = `<strong>${String.fromCharCode(65+i)})</strong> ${rounds[currentRoundIndex].qs[currentQuestionIndex].opts[i]}  ✅`;
+    } else if(i === idx){
+      if(i !== correct){
+        b.classList.add('wrong');
+      }
+    }
+    b.disabled = true;
+  });
+  // assign point if correct
+  if(idx === correct){
+    scores[activePlayer] += 1;
+    updateScores();
+  }
+}
+
+function updateScores(){
+  score1.textContent = scores[0];
+  score2.textContent = scores[1];
+}
+
+p1Btn.addEventListener('click', ()=> setActive(0));
+p2Btn.addEventListener('click', ()=> setActive(1));
+p1.addEventListener('click', ()=> setActive(0));
+p2.addEventListener('click', ()=> setActive(1));
+
+function setActive(i){
+  activePlayer = i;
+  if(i===0){ p1.classList.add('active'); p2.classList.remove('active'); }
+  else { p2.classList.add('active'); p1.classList.remove('active'); }
+}
+
+nextBtn.addEventListener('click', ()=>{
+  const round = rounds[currentRoundIndex];
+  if(currentQuestionIndex < round.qs.length-1){
+    currentQuestionIndex++;
+    renderQuestion();
+  } else {
+    alert(`Runde beendet! ${round.title}\nPunkte: Spieler1 = ${scores[0]}, Spieler2 = ${scores[1]}`);
+  }
+});
+
+revealBtn.addEventListener('click', ()=>{
+  // reveal correct without awarding points
+  if(answered) return;
+  const qObj = rounds[currentRoundIndex].qs[currentQuestionIndex];
+  const correct = qObj.a;
+  [...answersDiv.children].forEach((b,i)=> {
+    if(i===correct) { b.classList.add('correct'); b.innerHTML = `<strong>${String.fromCharCode(65+i)})</strong> ${qObj.opts[i]}  ✅`; }
+    b.disabled = true;
+  });
+  answered = true;
+});
+
+resetBtn.addEventListener('click', ()=>{
+  if(confirm("Neu starten? Punktestand und Frageindex werden zurückgesetzt.")){
+    scores = [0,0];
+    updateScores();
+    currentQuestionIndex = 0;
+    answered = false;
+    renderQuestion();
+  }
+});
+
+startBtn.addEventListener('click', startRound);
+
+/* Export TXT: erzeugt plain text mit allen Fragen und Lösungen */
+exportTxt.addEventListener('click', ()=>{
+  let txt = "Kinder-Quiz (10–13) — Export\n\n";
+  rounds.forEach((r,ri)=>{
+    txt += `${ri+1}. ${r.title}\n\n`;
+    r.qs.forEach((q,qi)=>{
+      txt += `${qi+1}. ${q.q}\n`;
+      q.opts.forEach((o,oi)=>{
+        const letter = String.fromCharCode(65+oi);
+        const mark = (oi===q.a ? " <-- RICHTIG" : "");
+        txt += `   ${letter}) ${o}${mark}\n`;
+      });
+      txt += "\n";
+    });
+    txt += "----------------------------------------\n\n";
+  });
+  // download
+  const blob = new Blob([txt], {type:'text/plain;charset=utf-8'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'kinder_quiz_export.txt';
+  document.body.appendChild(a); a.click();
+  a.remove(); URL.revokeObjectURL(url);
+});
+
+/* init UI */
+roundSelect.value = 0;
+startRound();
+updateScores();
+</script>
+</body>
+</html>
